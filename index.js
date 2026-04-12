@@ -17,6 +17,8 @@ require("dotenv").config();
 const { swaggerUi, swaggerSpec } = require('./swagger');
 const express = require("express");
 const bodyParser = require("body-parser");
+const pinoHttp = require("pino-http");
+const client = require("prom-client");
 const corsMiddleware = require("./interfaces/http/middlewares/cors.middleware");
 
 const productRoutes = require("./interfaces/http/routes/product-routes");
@@ -24,6 +26,24 @@ const pedidoRoutes = require("./interfaces/http/routes/pedido-routes");
 const connectToDatabase = require("./infra/database/mongodb/mongodb-connection");
 
 /**
+
+ * =========================
+ * METRICS (Prometheus)
+ * =========================
+ */
+
+// Coleta métricas padrão (CPU, memória, etc)
+client.collectDefaultMetrics();
+
+// Histograma de tempo de resposta
+const httpRequestDurationMicroseconds = new client.Histogram({
+  name: "http_request_duration_ms",
+  help: "Duração das requisições HTTP em ms",
+  labelNames: ["method", "route", "code"],
+});
+
+/**
+>>>>>>> 04c4a5a (versao 2k)
  * Instância principal da aplicação Express.
  * @type {import("express").Express}
  */
@@ -44,6 +64,46 @@ app.use(bodyParser.json());
  * Middleware responsável por permitir requisições CORS.
  */
 app.use(corsMiddleware());
+
+
+// 🔥 LOGS AUTOMÁTICOS (pino)
+app.use(pinoHttp());
+
+// 🔥 MÉTRICAS DE PERFORMANCE
+app.use((req, res, next) => {
+  const start = Date.now();
+
+  res.on("finish", () => {
+    const duration = Date.now() - start;
+
+    httpRequestDurationMicroseconds
+      .labels(req.method, req.route?.path || req.url, res.statusCode)
+      .observe(duration);
+  });
+
+  next();
+});
+
+/**
+ * =========================
+ * ROTAS ESPECIAIS (OBSERVABILIDADE)
+ * =========================
+ */
+
+// ✅ Healthcheck
+app.get("/health", (req, res) => {
+  res.status(200).json({
+    status: "ok",
+    uptime: process.uptime(),
+    timestamp: new Date(),
+  });
+});
+
+// ✅ Métricas Prometheus
+app.get("/metrics", async (req, res) => {
+  res.set("Content-Type", client.register.contentType);
+  res.end(await client.register.metrics());
+});
 
 /**
  * =========================
@@ -73,7 +133,7 @@ app.use("/pedidos", pedidoRoutes);
  * Porta em que o servidor será executado.
  * @type {number}
  */
-const PORT = Number(process.env.PORT) || 5000;
+const PORT = Number(process.env.PORT) || 5001;
 
 /**
  * Inicializa a conexão com o banco de dados.

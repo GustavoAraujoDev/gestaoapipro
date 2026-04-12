@@ -4,8 +4,8 @@ route:
 receivers:
   - name: "default"
     email_configs:
-      - to: "seu-email@gmail.com"
-        from: "alerta@api.com"
+      - to: "lindogustavo289@gmail.com"
+        from: "gustavobarrosaraujo10@gmail.com"
         smarthost: "smtp.gmail.com:587"
-        auth_username: "seu-email@gmail.com"
-        auth_password: "SENHA_APP_GMAIL"
+        auth_username: "gustavobarrosaraujo10@gmail.com"
+        auth_password: "eugy eirs hmor kcbj"
